@@ -1,0 +1,10 @@
+[package]
+name = "toolbox"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = "3.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["fileapi", "consoleapi", "minwindef", "winreg", "winerror", "winnt"] }
