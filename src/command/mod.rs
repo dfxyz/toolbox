@@ -16,3 +16,5 @@ pub mod scph;
 
 #[cfg(windows)]
 pub mod wt;
+
+pub mod cert;

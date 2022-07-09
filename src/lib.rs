@@ -30,6 +30,7 @@ pub fn main() {
         command::scph::NAME => command::scph::run(),
         #[cfg(windows)]
         command::wt::NAME => command::wt::run(),
+        command::cert::NAME => command::cert::run(),
         _ => {
             eprintln!("error: cannot run as '{}'", program);
             std::process::exit(1);
@@ -48,7 +49,8 @@ fn run() -> ! {
                 let arg = clap::arg!(-l --link <SUBCOMMAND> "Make a symlink of <SUBCOMMAND> in the working directory.")
                     .required(false)
                     .possible_value(command::sshh::NAME)
-                    .possible_value(command::scph::NAME);
+                    .possible_value(command::scph::NAME)
+                    .possible_value(command::cert::NAME);
                 #[cfg(windows)]
                 let arg = arg.possible_value(command::sudo::NAME)
                     .possible_value(command::shell::NAME)
@@ -63,12 +65,12 @@ fn run() -> ! {
         .subcommand(command::sudo::args().display_order(1))
         .subcommand(command::shell::args().display_order(2))
         .subcommand(command::hide::args().display_order(3))
-        .subcommand(command::unhide::args().display_order(4));
+        .subcommand(command::unhide::args().display_order(4))
+        .subcommand(command::wt::args().display_order(7));
     let args = args
         .subcommand(command::sshh::args().display_order(5))
-        .subcommand(command::scph::args().display_order(6));
-    #[cfg(windows)]
-    let args = args.subcommand(command::wt::args().display_order(7));
+        .subcommand(command::scph::args().display_order(6))
+        .subcommand(command::cert::args().display_order(8));
     let matches = args.get_matches();
 
     if let Some(cmd) = matches.get_one::<String>("link") {
@@ -89,6 +91,7 @@ fn run() -> ! {
             command::scph::NAME => command::scph::run_with_matches(matches),
             #[cfg(windows)]
             command::wt::NAME => command::wt::run_with_matches(matches),
+            command::cert::NAME => command::cert::run_with_matches(matches),
             _ => unreachable!(),
         }
     }
