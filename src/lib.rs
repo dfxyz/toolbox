@@ -31,6 +31,8 @@ pub fn main() {
         #[cfg(windows)]
         command::wt::NAME => command::wt::run(),
         command::cert::NAME => command::cert::run(),
+        command::encrypt::NAME => command::encrypt::run(),
+        command::decrypt::NAME => command::decrypt::run(),
         _ => {
             eprintln!("error: cannot run as '{}'", program);
             std::process::exit(1);
@@ -50,7 +52,9 @@ fn run() -> ! {
                     .required(false)
                     .possible_value(command::sshh::NAME)
                     .possible_value(command::scph::NAME)
-                    .possible_value(command::cert::NAME);
+                    .possible_value(command::cert::NAME)
+                    .possible_value(command::encrypt::NAME)
+                    .possible_value(command::decrypt::NAME);
                 #[cfg(windows)]
                 let arg = arg.possible_value(command::sudo::NAME)
                     .possible_value(command::shell::NAME)
@@ -70,7 +74,9 @@ fn run() -> ! {
     let args = args
         .subcommand(command::sshh::args().display_order(5))
         .subcommand(command::scph::args().display_order(6))
-        .subcommand(command::cert::args().display_order(8));
+        .subcommand(command::cert::args().display_order(8))
+        .subcommand(command::encrypt::args().display_order(9))
+        .subcommand(command::decrypt::args().display_order(10));
     let matches = args.get_matches();
 
     if let Some(cmd) = matches.get_one::<String>("link") {
@@ -92,6 +98,8 @@ fn run() -> ! {
             #[cfg(windows)]
             command::wt::NAME => command::wt::run_with_matches(matches),
             command::cert::NAME => command::cert::run_with_matches(matches),
+            command::encrypt::NAME => command::encrypt::run_with_matches(matches),
+            command::decrypt::NAME => command::decrypt::run_with_matches(matches),
             _ => unreachable!(),
         }
     }
