@@ -1,0 +1,8 @@
+[package]
+name = "win-file-attr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+simple-logger.workspace = true
+winapi = { workspace = true, features = ["fileapi", "winnt"] }

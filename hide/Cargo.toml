@@ -1,0 +1,8 @@
+[package]
+name = "hide"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+win-file-attr = { path = "../win-file-attr" }
+clap = { version = "4.5.7", features = ["derive"] }

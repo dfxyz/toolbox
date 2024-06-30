@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = ["hide", "killtask", "pargs", "scph", "setfileno", "shell", "sshh", "sshhlib", "sudo", "unhide", "win-file-attr"]
+
+[workspace.dependencies]
+clap = { version = "4", features = ["derive"] }
+simple-logger = { git = "https://github.com/dfxyz/simple-logger.git", version = "0.1" }
+sqlite = "0.36"
+winapi = "0.3"

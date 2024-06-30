@@ -1,0 +1,8 @@
+[package]
+name = "sshhlib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+simple-logger.workspace = true
+sqlite3 = "0.24.0"

@@ -1,0 +1,7 @@
+[package]
+name = "sudo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+winapi = { workspace = true, features = ["shellapi", "winuser"] }

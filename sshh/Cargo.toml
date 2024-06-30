@@ -1,0 +1,11 @@
+[package]
+name = "sshh"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap.workspace = true
+simple-logger.workspace = true
+sshhlib = { version = "0.1.0", path = "../sshhlib" }
+winapi.workspace = true
+winapi.features = ["consoleapi"]

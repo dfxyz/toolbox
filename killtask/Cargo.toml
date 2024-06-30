@@ -1,0 +1,8 @@
+[package]
+name = "killtask"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap.workspace = true
+simple-logger.workspace = true
