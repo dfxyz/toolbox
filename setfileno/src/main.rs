@@ -54,6 +54,10 @@ fn main() -> ExitCode {
         };
 
         let mut number = args.number;
+        let reverse = match filename.parse::<u32>() {
+            Ok(n) => n < number,
+            Err(_) => false,
+        };
         let mut rename_pairs = vec![(reserved_name, filename_by_number(number))];
         loop {
             let last_file = &rename_pairs.last().unwrap().1;
@@ -71,8 +75,22 @@ fn main() -> ExitCode {
                 custom_cyan!(notice: "target file has been renamed with '__' prefix");
                 return Err(());
             }
-            rename_pairs.push((last_file.clone(), filename_by_number(number + 1)));
-            number += 1;
+            if reverse {
+                if number == 0 {
+                    error!("'{}' exists and cannot be renamed as negative number", last_file);
+                    custom_cyan!(notice: "target file has been renamed with '__' prefix");
+                    return Err(());
+                } 
+            } else {
+                if number == u32::MAX {
+                    error!("'{}' exists and cannot be renamed as zero", last_file);
+                    custom_cyan!(notice: "target file has been renamed with '__' prefix");
+                    return Err(());
+                } 
+            }
+            let next_number = if reverse { number - 1 } else { number + 1 };
+            rename_pairs.push((last_file.clone(), filename_by_number(next_number)));
+            number = next_number;
         }
 
         for (old_name, new_name) in rename_pairs.iter().rev() {
