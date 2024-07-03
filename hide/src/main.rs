@@ -4,8 +4,8 @@ use clap::Parser;
 
 #[derive(Parser)]
 struct Arguments {
-    #[clap(help = "Path to a file or directory")]
-    path: String,
+    #[clap(help = "Path(s) to file or directory")]
+    paths: Vec<String>,
 
     #[clap(long = "system", help = "Set the 'SYSTEM' attribute too")]
     system: bool,
@@ -13,7 +13,10 @@ struct Arguments {
 fn main() -> ExitCode {
     let result = || -> Result<(), ()> {
         let args = Arguments::parse();
-        unsafe { win_file_attr::set(&args.path, true, args.system) }
+        for path in &args.paths {
+            unsafe { win_file_attr::set(path, true, args.system) }?;
+        }
+        Ok(())
     };
     match result() {
         Ok(_) => ExitCode::SUCCESS,

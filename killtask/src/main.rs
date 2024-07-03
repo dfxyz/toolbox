@@ -1,5 +1,5 @@
 use clap::Parser;
-use simple_logger::{error, info, warn};
+use simple_logger::error;
 
 #[derive(Parser)]
 struct Arguments {
