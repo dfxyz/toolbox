@@ -33,24 +33,29 @@ fn main() -> ExitCode {
         }
 
         let fileno;
-        let padding = args.padding;
-        let filename_by_number: Box<dyn Fn(u32) -> String> = match filename.rfind('.') {
-            Some(index) => {
-                fileno = filename[..index].parse::<u32>().ok();
-                let ext_name = filename[index..].to_string();
-                Box::new(move |number: u32| -> String {
-                    format!("{:0width$}{}", number, ext_name, width = padding as usize)
-                })
-            }
+        let ext_suffix;
+        match filename.rfind('.') {
             None => {
                 fileno = filename.parse::<u32>().ok();
-                Box::new(|number: u32| -> String {
-                    format!("{:0width$}", number, width = padding as usize)
-                })
+                ext_suffix = None;
             }
+            Some(x) => {
+                fileno = filename[..x].parse::<u32>().ok();
+                ext_suffix = Some(&filename[x..]);
+            }
+        }
+
+        let padding = args.padding;
+        let gen_filename = |number| -> String {
+            let mut name = format!("{:0width$}", number, width = padding as usize);
+            if let Some(ext) = ext_suffix {
+                name.push_str(ext);
+            }
+            name
         };
-        let mut number = args.number;
-        if filename == filename_by_number(number) {
+
+        let number = args.number;
+        if filename == gen_filename(number) {
             warn!("no need to set file number");
             return Ok(());
         }
@@ -62,71 +67,78 @@ fn main() -> ExitCode {
                 filename, reserved_name, e
             );
         })?;
+        let mut rename_pairs = vec![(reserved_name, gen_filename(number))];
 
-        let swap;
-        let reverse;
-        match fileno {
-            Some(n) => {
-                if n < number {
-                    swap = n + 1 == number && filename_by_number(n) == filename;
-                    reverse = true;
-                } else {
-                    swap = (n == number || n - 1 == number) && filename_by_number(n) == filename;
-                    reverse = false;
-                }
-            }
-            None => {
-                swap = false;
-                reverse = false;
-            }
+        enum RenameMethod {
+            Swap,
+            Forward,
+            Backward,
         }
-
-        let mut rename_pairs = vec![(reserved_name, filename_by_number(number))];
-        if swap {
-            rename_pairs.push((filename_by_number(number), filename));
-        } else {
-            loop {
-                let last_file = &rename_pairs.last().unwrap().1;
-                let md = match std::fs::metadata(last_file) {
-                    Ok(md) => md,
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => break,
-                    Err(e) => {
-                        error!("failed to get metadata of '{}': {}", last_file, e);
-                        custom_cyan!(notice: "target file has been renamed with '__' prefix");
-                        return Err(());
-                    }
-                };
-                if !md.is_file() {
-                    error!("'{}' is not a file", last_file);
-                    custom_cyan!(notice: "target file has been renamed with '__' prefix");
-                    return Err(());
-                }
-                if reverse {
-                    if number == 0 {
-                        error!(
-                            "'{}' exists and cannot be renamed as negative number",
-                            last_file
-                        );
-                        custom_cyan!(notice: "target file has been renamed with '__' prefix");
-                        return Err(());
+        let method = match fileno {
+            Some(n) => {
+                if n == number {
+                    RenameMethod::Forward
+                } else if n < number {
+                    if n + 1 == number {
+                        RenameMethod::Swap
+                    } else {
+                        RenameMethod::Backward
                     }
                 } else {
-                    if number == u32::MAX {
-                        error!("'{}' exists and cannot be renamed as zero", last_file);
-                        custom_cyan!(notice: "target file has been renamed with '__' prefix");
-                        return Err(());
+                    if n - 1 == number {
+                        RenameMethod::Swap
+                    } else {
+                        RenameMethod::Forward
                     }
                 }
-                let next_number = if reverse { number - 1 } else { number + 1 };
-                rename_pairs.push((last_file.clone(), filename_by_number(next_number)));
-                number = next_number;
+            }
+            None => RenameMethod::Forward,
+        };
+
+        match method {
+            RenameMethod::Swap => {
+                rename_pairs.push((gen_filename(number), filename));
+            }
+            _ => {
+                let mut target_number = number;
+                loop {
+                    let target_filename = &rename_pairs.last().unwrap().1;
+                    let md = match std::fs::metadata(target_filename) {
+                        Ok(md) => md,
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => break,
+                        Err(e) => {
+                            error!("failed to get metadata of '{}': {}", target_filename, e);
+                            custom_cyan!(notice: "given file has been renamed with '__' prefix");
+                            return Err(());
+                        }
+                    };
+                    if !md.is_file() {
+                        error!("'{}' is not a file", target_filename);
+                        custom_cyan!(notice: "given file has been renamed with '__' prefix");
+                        return Err(());
+                    }
+
+                    let next_number = if matches!(method, RenameMethod::Forward) {
+                        target_number.checked_add(1).ok_or_else(|| {
+                            error!("'{}' exists and is `u32::MAX`", target_filename);
+                            custom_cyan!(notice: "given file has been renamed with '__' prefix");
+                        })?
+                    } else {
+                        target_number.checked_sub(1).ok_or_else(|| {
+                            error!("'{}' exists and is zero", target_filename);
+                            custom_cyan!(notice: "given file has been renamed with '__' prefix");
+                        })?
+                    };
+                    rename_pairs.push((target_filename.clone(), gen_filename(next_number)));
+                    target_number = next_number;
+                }
             }
         }
 
         for (old_name, new_name) in rename_pairs.iter().rev() {
             std::fs::rename(old_name, new_name).map_err(|e| {
                 error!("failed to rename '{}' to '{}': {}", old_name, new_name, e);
-                custom_cyan!(notice: "target file has been renamed with '__' prefix");
+                custom_cyan!(notice: "given file has been renamed with '__' prefix");
             })?;
         }
 
