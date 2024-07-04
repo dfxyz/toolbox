@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 use clap::Parser;
-use simple_logger::{custom_cyan, error, info, warn};
+use simple_logger::{custom_cyan, error, warn};
 
 #[derive(Parser)]
 struct Arguments {
@@ -142,7 +142,6 @@ fn main() -> ExitCode {
             })?;
         }
 
-        info!("done");
         Ok(())
     }();
     match result {
