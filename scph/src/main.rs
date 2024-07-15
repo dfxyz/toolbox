@@ -5,11 +5,22 @@ use simple_logger::{error, warn};
 
 // scph # list all endpoints
 // scph -a <alias> <endpoint> # upsert an endpoint
+// scph -d <alias> # remove an endpoints
+// scph -m <oldAlias> <newAlias> # rename an endpoint
 // scph <source> ... <target> # copy files between endpoints
 #[derive(Parser)]
 struct Arguments {
-    #[clap(short, long, help = "Upsert a new endpoint")]
+    #[clap(short, long, help = "Upsert a new endpoint", conflicts_with_all = &["remove", "rename"])]
     add: bool,
+
+    #[clap(short='d', long, help = "Remove an endpoint", conflicts_with_all = &["add", "rename"])]
+    remove: bool,
+
+    #[clap(short='m', long, help = "Rename an endpoint", conflicts_with_all = &["add", "remove"])]
+    rename: bool,
+
+    #[clap(help = "Alias of the endpoint")]
+    alias: Option<String>,
 
     #[clap(
         trailing_var_arg = true,
@@ -17,6 +28,8 @@ struct Arguments {
         help = "The rest of the arguments",
         long_help = r#"The rest of the arguments.
 If '--add' is present, they are required as '<alias> <endpoint>'.
+If '--rename' is present, this is not required.
+If '--rename' is present, this is required as the new alias.
 Otherwise, these are '<source> ... <target>'."#
     )]
     rest_args: Vec<String>,
@@ -35,6 +48,29 @@ fn main() -> ExitCode {
             let endpoint = args.rest_args[1].as_str();
             let db = sshhlib::SshHelper::open()?;
             db.upsert_endpoint(alias, endpoint)?;
+            return Ok(ExitCode::SUCCESS);
+        }
+
+        if args.remove {
+            if args.alias.is_none() {
+                error!("'--remove' requires an alias");
+                return Err(());
+            }
+            let alias = args.alias.as_deref().unwrap();
+            let helper = sshhlib::SshHelper::open()?;
+            helper.remove_endpoint(alias)?;
+            return Ok(ExitCode::SUCCESS);
+        }
+
+        if args.rename {
+            if args.alias.is_none() || args.rest_args.is_empty() {
+                error!("'--rename' requires an old alias and a new alias");
+                return Err(());
+            }
+            let old_alias = args.alias.as_deref().unwrap();
+            let new_alias = args.rest_args[0].as_str();
+            let helper = sshhlib::SshHelper::open()?;
+            helper.rename_endpoint(old_alias, new_alias)?;
             return Ok(ExitCode::SUCCESS);
         }
 

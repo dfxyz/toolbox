@@ -156,6 +156,49 @@ impl SshHelper {
         })?;
         Ok(())
     }
+
+    fn changes(&self) -> Result<usize, ()> {
+        let mut stmt = self.db.prepare("select changes()").unwrap();
+        stmt.next().map_err(|e| {
+            error!("failed to get change count: {}", e);
+        })?;
+        let count = stmt.read::<i64>(0).unwrap();
+        Ok(count as usize)
+    }
+
+    pub fn remove_endpoint(&self, alias: &str) -> Result<(), ()> {
+        let mut stmt = self
+            .db
+            .prepare("delete from record where alias = ?")
+            .unwrap();
+        stmt.bind(1, alias).unwrap();
+        stmt.next().map_err(|e| {
+            error!("failed to remove the record: {}", e);
+        })?;
+        let count = self.changes()?;
+        if count == 0 {
+            error!("no endpoint found with alias '{}'", alias);
+        }
+        Ok(())
+    }
+
+    pub fn rename_endpoint(&self, old_alias: &str, new_alias: &str) -> Result<(), ()> {
+        let new_alias = check_alias(new_alias)?;
+        let mut stmt = self
+            .db
+            .prepare("update record set alias = ? where alias = ?")
+            .unwrap();
+        stmt.bind(1, new_alias.as_str()).unwrap();
+        stmt.bind(2, old_alias).unwrap();
+        stmt.next().map_err(|e| {
+            error!("failed to rename the record: {}", e);
+        })?;
+        let count = self.changes()?;
+        if count == 0 {
+            error!("no endpoint found with alias '{}'", old_alias);
+        }
+        Ok(())
+    }
 }
 
 fn check_alias(alias: &str) -> Result<String, ()> {

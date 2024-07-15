@@ -5,12 +5,20 @@ use simple_logger::{error, warn};
 
 // sshh # list all endpoints
 // sshh -a <alias> <endpoint> # upsert an endpoint
+// sshh -d <alias> # remove an endpoint
+// sshh -m <oldAlias> <newAlias> # rename an endpoint
 // sshh <alias> # connect to an endpoint
 // sshh <alias> <command> [args...] # run a command on an endpoint
 #[derive(Parser)]
 struct Arguments {
-    #[clap(short, long, help = "Upsert a new endpoint")]
+    #[clap(short, long, help = "Upsert a new endpoint", conflicts_with_all = &["remove", "rename"])]
     add: bool,
+
+    #[clap(short='d', long, help = "Remove an endpoint", conflicts_with_all = &["add", "rename"])]
+    remove: bool,
+
+    #[clap(short='m', long, help = "Rename an endpoint", conflicts_with_all = &["add", "remove"])]
+    rename: bool,
 
     #[clap(help = "Alias of the endpoint")]
     alias: Option<String>,
@@ -21,6 +29,8 @@ struct Arguments {
         help = "The rest of the arguments",
         long_help = r#"The rest of the arguments.
 If '--add' is present, this is required as the endpoint.
+If '--rename' is present, this is not required.
+If '--rename' is present, this is required as the new alias.
 Otherwise, these are optional command and arguments to run on the endpoint."#
     )]
     rest_args: Vec<String>,
@@ -39,6 +49,29 @@ fn main() -> ExitCode {
             let endpoint = args.rest_args[0].as_str();
             let helper = sshhlib::SshHelper::open()?;
             helper.upsert_endpoint(alias, endpoint)?;
+            return Ok(ExitCode::SUCCESS);
+        }
+
+        if args.remove {
+            if args.alias.is_none() {
+                error!("'--remove' requires an alias");
+                return Err(());
+            }
+            let alias = args.alias.as_deref().unwrap();
+            let helper = sshhlib::SshHelper::open()?;
+            helper.remove_endpoint(alias)?;
+            return Ok(ExitCode::SUCCESS);
+        }
+
+        if args.rename {
+            if args.alias.is_none() || args.rest_args.is_empty() {
+                error!("'--rename' requires an old alias and a new alias");
+                return Err(());
+            }
+            let old_alias = args.alias.as_deref().unwrap();
+            let new_alias = args.rest_args[0].as_str();
+            let helper = sshhlib::SshHelper::open()?;
+            helper.rename_endpoint(old_alias, new_alias)?;
             return Ok(ExitCode::SUCCESS);
         }
 
