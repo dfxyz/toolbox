@@ -52,12 +52,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cc"
-version = "1.0.101"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac367972e516d45567c7eafc73d24e1c193dcf200a8d94e9db7b3d38b349572d"
-
-[[package]]
 name = "clap"
 version = "4.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -132,23 +126,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "libc"
-version = "0.2.155"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
-
-[[package]]
 name = "pargs"
 version = "0.1.0"
 dependencies = [
  "simple-logger",
 ]
-
-[[package]]
-name = "pkg-config"
-version = "0.3.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 
 [[package]]
 name = "proc-macro2"
@@ -200,36 +182,6 @@ version = "0.1.0"
 source = "git+https://github.com/dfxyz/simple-logger.git#6c64705c439bf68a9cc2a503162533da47518534"
 
 [[package]]
-name = "sqlite3"
-version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1906b10f5e1940b3f2f758992f5958f9b27abaf2e028e86fa3c42f49fb5e583c"
-dependencies = [
- "libc",
- "sqlite3-sys",
-]
-
-[[package]]
-name = "sqlite3-src"
-version = "0.2.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8bb25e66d026488228a97e0ad21e3d15ec5998dcd9ad73c97cc277c56a6b314"
-dependencies = [
- "cc",
- "pkg-config",
-]
-
-[[package]]
-name = "sqlite3-sys"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71fec807a1534bd13eeaaec396175d67c79bdc68df55e18a452726ec62a8fb08"
-dependencies = [
- "libc",
- "sqlite3-src",
-]
-
-[[package]]
 name = "sshh"
 version = "0.1.0"
 dependencies = [
@@ -244,7 +196,6 @@ name = "sshhlib"
 version = "0.1.0"
 dependencies = [
  "simple-logger",
- "sqlite3",
 ]
 
 [[package]]

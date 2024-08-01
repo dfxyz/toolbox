@@ -3,11 +3,6 @@ use std::process::ExitCode;
 use clap::Parser;
 use simple_logger::{error, warn};
 
-// scph # list all endpoints
-// scph -a <alias> <endpoint> # upsert an endpoint
-// scph -d <alias> # remove an endpoints
-// scph -m <oldAlias> <newAlias> # rename an endpoint
-// scph <source> ... <target> # copy files between endpoints
 #[derive(Parser)]
 struct Arguments {
     #[clap(short, long, help = "Upsert a new endpoint", conflicts_with_all = &["remove", "rename"])]
@@ -19,20 +14,17 @@ struct Arguments {
     #[clap(short='m', long, help = "Rename an endpoint", conflicts_with_all = &["add", "remove"])]
     rename: bool,
 
-    #[clap(help = "Alias of the endpoint")]
-    alias: Option<String>,
-
     #[clap(
         trailing_var_arg = true,
         allow_hyphen_values = true,
         help = "The rest of the arguments",
-        long_help = r#"The rest of the arguments.
-If '--add' is present, they are required as '<alias> <endpoint>'.
-If '--rename' is present, this is not required.
-If '--rename' is present, this is required as the new alias.
-Otherwise, these are '<source> ... <target>'."#
+        long_help = r#"The positional arguments.
+If '--add' is present, an alias and an endpoint are required.
+If '--rename' is present, an alias and a new alias are required.
+If '--rename' is present, an alias is required.
+Otherwise, these arguments are passed to the 'scp' command."#
     )]
-    rest_args: Vec<String>,
+    args: Vec<String>,
 }
 
 fn main() -> ExitCode {
@@ -40,63 +32,44 @@ fn main() -> ExitCode {
         let args = Arguments::parse();
 
         if args.add {
-            if args.rest_args.len() < 2 {
-                error!("'--add' requires an alias and an endpoint");
+            let args = args.args;
+            if args.len() < 2 {
+                error!("'--add' requires an alias and an endpoint URI");
                 return Err(());
             }
-            let alias = args.rest_args[0].as_str();
-            let endpoint = args.rest_args[1].as_str();
-            let db = sshhlib::SshHelper::open()?;
-            db.upsert_endpoint(alias, endpoint)?;
+            let alias = &args[0];
+            let endpoint_url = &args[1];
+            sshhlib::add_or_modify_entry(alias, endpoint_url)?;
             return Ok(ExitCode::SUCCESS);
         }
 
         if args.remove {
-            if args.alias.is_none() {
+            let args = args.args;
+            if args.len() < 1 {
                 error!("'--remove' requires an alias");
                 return Err(());
             }
-            let alias = args.alias.as_deref().unwrap();
-            let helper = sshhlib::SshHelper::open()?;
-            helper.remove_endpoint(alias)?;
+            let alias = &args[0];
+            sshhlib::remove_entry(alias)?;
             return Ok(ExitCode::SUCCESS);
         }
 
         if args.rename {
-            if args.alias.is_none() || args.rest_args.is_empty() {
-                error!("'--rename' requires an old alias and a new alias");
+            let args = args.args;
+            if args.len() < 2 {
+                error!("'--rename' requires an alias and a new name");
                 return Err(());
             }
-            let old_alias = args.alias.as_deref().unwrap();
-            let new_alias = args.rest_args[0].as_str();
-            let helper = sshhlib::SshHelper::open()?;
-            helper.rename_endpoint(old_alias, new_alias)?;
+            let alias = &args[0];
+            let new_alias = &args[1];
+            sshhlib::rename_entry(alias, new_alias)?;
             return Ok(ExitCode::SUCCESS);
         }
 
-        let rest_args = args.rest_args;
-        if rest_args.is_empty() {
-            let db = sshhlib::SshHelper::open()?;
-            db.list_endpoints()?;
+        let args = args.args;
+        if args.is_empty()  {
+            sshhlib::list_entries()?;
             return Ok(ExitCode::SUCCESS);
-        }
-
-        if rest_args.len() < 2 {
-            error!("'<source> ... <target>' is required");
-            return Err(());
-        }
-        let helper = sshhlib::SshHelper::open()?;
-        let mut params = Vec::with_capacity(rest_args.len());
-        for arg in rest_args {
-            let parts = arg.splitn(2, ':').collect::<Vec<&str>>();
-            if parts.len() < 2 {
-                params.push(arg);
-                continue;
-            }
-            let alias = parts[0];
-            let endpoint = helper.get_endpoint_uri("scp://", alias)?;
-            let path = parts[1];
-            params.push(format!("{}/{}", endpoint, path));
         }
 
         unsafe { winapi::um::consoleapi::SetConsoleCtrlHandler(None, 1) };
@@ -105,7 +78,7 @@ fn main() -> ExitCode {
         #[cfg(unix)]
         let program = "scp";
         let mut child = std::process::Command::new(program)
-            .args(params)
+            .args(args)
             .spawn()
             .map_err(|e| {
                 error!("failed to spawn child process: {}", e);

@@ -3,37 +3,28 @@ use std::process::ExitCode;
 use clap::Parser;
 use simple_logger::{error, warn};
 
-// sshh # list all endpoints
-// sshh -a <alias> <endpoint> # upsert an endpoint
-// sshh -d <alias> # remove an endpoint
-// sshh -m <oldAlias> <newAlias> # rename an endpoint
-// sshh <alias> # connect to an endpoint
-// sshh <alias> <command> [args...] # run a command on an endpoint
 #[derive(Parser)]
 struct Arguments {
-    #[clap(short, long, help = "Upsert a new endpoint", conflicts_with_all = &["remove", "rename"])]
+    #[clap(short, long, help = "Upsert a new entry", conflicts_with_all = &["remove", "rename"])]
     add: bool,
 
-    #[clap(short='d', long, help = "Remove an endpoint", conflicts_with_all = &["add", "rename"])]
+    #[clap(short='d', long, help = "Remove an entry", conflicts_with_all = &["add", "rename"])]
     remove: bool,
 
-    #[clap(short='m', long, help = "Rename an endpoint", conflicts_with_all = &["add", "remove"])]
+    #[clap(short='m', long, help = "Rename an entry", conflicts_with_all = &["add", "remove"])]
     rename: bool,
-
-    #[clap(help = "Alias of the endpoint")]
-    alias: Option<String>,
 
     #[clap(
         trailing_var_arg = true,
         allow_hyphen_values = true,
-        help = "The rest of the arguments",
-        long_help = r#"The rest of the arguments.
-If '--add' is present, this is required as the endpoint.
-If '--rename' is present, this is not required.
-If '--rename' is present, this is required as the new alias.
-Otherwise, these are optional command and arguments to run on the endpoint."#
+        help = "The positional arguments",
+        long_help = r#"The positional arguments.
+If '--add' is present, an alias and an endpoint URI are required.
+If '--rename' is present, an alias and a new name are required.
+If '--rename' is present, an alias is required.
+Otherwise, these arguments are passed to the 'ssh' command."#
     )]
-    rest_args: Vec<String>,
+    args: Vec<String>,
 }
 
 fn main() -> ExitCode {
@@ -41,49 +32,45 @@ fn main() -> ExitCode {
         let args = Arguments::parse();
 
         if args.add {
-            if args.alias.is_none() || args.rest_args.is_empty() {
-                error!("'--add' requires an alias and an endpoint");
+            let args = args.args;
+            if args.len() < 2 {
+                error!("'--add' requires an alias and an endpoint URI");
                 return Err(());
             }
-            let alias = args.alias.as_deref().unwrap();
-            let endpoint = args.rest_args[0].as_str();
-            let helper = sshhlib::SshHelper::open()?;
-            helper.upsert_endpoint(alias, endpoint)?;
+            let alias = &args[0];
+            let endpoint_url = &args[1];
+            sshhlib::add_or_modify_entry(alias, endpoint_url)?;
             return Ok(ExitCode::SUCCESS);
         }
 
         if args.remove {
-            if args.alias.is_none() {
+            let args = args.args;
+            if args.len() < 1 {
                 error!("'--remove' requires an alias");
                 return Err(());
             }
-            let alias = args.alias.as_deref().unwrap();
-            let helper = sshhlib::SshHelper::open()?;
-            helper.remove_endpoint(alias)?;
+            let alias = &args[0];
+            sshhlib::remove_entry(alias)?;
             return Ok(ExitCode::SUCCESS);
         }
 
         if args.rename {
-            if args.alias.is_none() || args.rest_args.is_empty() {
-                error!("'--rename' requires an old alias and a new alias");
+            let args = args.args;
+            if args.len() < 2 {
+                error!("'--rename' requires an alias and a new name");
                 return Err(());
             }
-            let old_alias = args.alias.as_deref().unwrap();
-            let new_alias = args.rest_args[0].as_str();
-            let helper = sshhlib::SshHelper::open()?;
-            helper.rename_endpoint(old_alias, new_alias)?;
+            let alias = &args[0];
+            let new_alias = &args[1];
+            sshhlib::rename_entry(alias, new_alias)?;
             return Ok(ExitCode::SUCCESS);
         }
 
-        if args.alias.is_none() {
-            let helper = sshhlib::SshHelper::open()?;
-            helper.list_endpoints()?;
+        let args = args.args;
+        if args.is_empty()  {
+            sshhlib::list_entries()?; 
             return Ok(ExitCode::SUCCESS);
         }
-
-        let helper = sshhlib::SshHelper::open()?;
-        let alias = args.alias.as_deref().unwrap();
-        let uri = helper.get_endpoint_uri("ssh://", alias)?;
 
         unsafe { winapi::um::consoleapi::SetConsoleCtrlHandler(None, 1) };
         #[cfg(windows)]
@@ -91,7 +78,7 @@ fn main() -> ExitCode {
         #[cfg(unix)]
         let program = "ssh";
         let mut child = std::process::Command::new(program)
-            .args(std::iter::once(uri).chain(args.rest_args.into_iter()))
+            .args(args)
             .spawn()
             .map_err(|e| {
                 error!("failed to spawn child process: {}", e);
